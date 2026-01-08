@@ -2,166 +2,183 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Double Earning Bot</title>
+<title>User Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Telegram -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-<!-- Firebase -->
+<!-- Firebase v8 -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <!-- Monetag -->
-<script src="https://libtl.com/sdk.js"></script>
+<script src="//libtl.com/sdk.js"
+        data-zone="10420496"
+        data-sdk="show_10420496"></script>
 
 <style>
-body{
-  font-family: Arial;
-  margin:0;
-  background:#f6f6f6;
-}
-.header{
-  background:#b30000;
-  color:white;
-  padding:15px;
-}
-.card{
-  background:white;
-  margin:15px;
-  padding:15px;
-  border-radius:12px;
-}
-.btn{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  background:#d10000;
-  color:white;
-  border:none;
-  border-radius:10px;
-  font-size:16px;
-}
-input,select{
-  width:100%;
-  padding:10px;
-  margin-top:8px;
-  border-radius:8px;
-  border:1px solid #ccc;
-}
+body{margin:0;font-family:sans-serif;background:#0f172a;color:#fff}
+.card{background:#1e293b;margin:12px;padding:15px;border-radius:12px}
+.btn{background:#2563eb;padding:12px;text-align:center;border-radius:10px;margin-top:10px}
+.bottom{position:fixed;bottom:0;left:0;right:0;background:#020617;display:flex}
+.bottom div{flex:1;padding:12px;text-align:center;color:#94a3b8}
+.hide{display:none}
+input,select{width:100%;padding:10px;border-radius:8px;border:none}
 </style>
 </head>
 
 <body>
 
-<div class="header">
-  <b id="username">User</b><br>
-  ID: <span id="uid"></span><br>
-  Balance: ৳ <span id="balance">0</span>
+<div class="card">
+👤 <b id="name"></b><br>
+ID: <span id="uid"></span>
 </div>
 
 <div class="card">
-  <button class="btn" onclick="showAd()">🎬 Ad দেখুন</button>
-  <button class="btn" onclick="showWithdraw()">📤 Withdraw</button>
-  <button class="btn" onclick="showAd()">📋 Task</button>
+🔔 <span id="notice">Loading...</span>
 </div>
 
-<div class="card" id="withdrawBox" style="display:none;">
-  <h3>Withdraw Request</h3>
-  <select id="method">
-    <option value="">Method Select</option>
-    <option>Bkash</option>
-    <option>Nagad</option>
-    <option>Rocket</option>
-  </select>
-  <input type="text" id="number" placeholder="Number">
-  <input type="number" id="amount" placeholder="Amount">
-  <button class="btn" onclick="withdraw()">Submit</button>
+<div class="card">
+💰 Balance: ৳ <b id="balance">0</b><br>
+📈 Total Earn: ৳ <span id="total">0</span><br>
+👥 Referrals: <span id="refs">0</span><br>
+🎯 Today Ads: <span id="ads">0</span>/<span id="limit">0</span>
+</div>
+
+<div class="card">
+<div class="btn" onclick="watchAd()">▶ উপার্জন শুরু করুন</div>
+</div>
+
+<div class="card hide" id="withdrawBox">
+<select id="method">
+<option>Bkash</option>
+<option>Nagad</option>
+<option>Rocket</option>
+</select><br><br>
+<input id="number" placeholder="Payment Number"><br><br>
+<input id="amount" placeholder="Amount"><br><br>
+<div class="btn" onclick="withdraw()">Withdraw</div>
+</div>
+
+<div class="bottom">
+<div onclick="showHome()">🏠</div>
+<div onclick="showWithdraw()">💸</div>
+<div onclick="share()">👥</div>
 </div>
 
 <script>
-// =======================
-// 🔴 Firebase CONFIG
-// 👉 এখানে তোমার Firebase API বসাবে
-// =======================
-var firebaseConfig = {
+/* 🔥 FIREBASE CONFIG */
+firebase.initializeApp({
   apiKey: "",
   authDomain: "double-earning-bot.firebaseapp.com",
   databaseURL: "https://double-earning-bot-default-rtdb.firebaseio.com",
   projectId: "double-earning-bot",
   storageBucket: "double-earning-bot.firebasestorage.app",
   messagingSenderId: "155076870534",
-  appId: "1:155076870534:web:0023206fbb40f56aafac07",
-  measurementId: "G-HKT35XCSYH"
-};
-  
-firebase.initializeApp(firebaseConfig);
-var db = firebase.database();
+  appId: "1:155076870534:web:0023206fbb40f56aafac07"
+});
+const db=firebase.database();
 
-// =======================
-// 🔴 Telegram User
-// =======================
-const tg = window.Telegram.WebApp;
-const user = tg.initDataUnsafe.user;
+/* TELEGRAM USER */
+const tg=Telegram.WebApp;
+tg.expand();
+const user=tg.initDataUnsafe.user;
+const uid=user.id;
 
-if(!user){
-  document.body.innerHTML = "<h3>Open from Telegram Bot</h3>";
-}
+document.getElementById("name").innerText=user.first_name;
+document.getElementById("uid").innerText=uid;
 
-const userId = user.id;
-document.getElementById("username").innerText = user.first_name;
-document.getElementById("uid").innerText = userId;
+/* DATE */
+const today=new Date().toISOString().split("T")[0];
 
-// =======================
-// 🔴 Load User
-// =======================
-const userRef = db.ref("users/"+userId);
-userRef.once("value",snap=>{
-  if(!snap.exists()){
-    userRef.set({
-      name:user.first_name,
-      balance:0
-    });
-  }else{
-    document.getElementById("balance").innerText = snap.val().balance;
-  }
+/* LOAD SETTINGS */
+let perAd=0, limit=0, refBonus=0, minW=0;
+db.ref("settings").on("value",s=>{
+ const d=s.val();
+ if(!d) return;
+ document.getElementById("notice").innerText=d.notice||"";
+ perAd=d.valuePerAd||0;
+ limit=d.dailyAdLimit||0;
+ refBonus=d.referralBonus||0;
+ minW=d.minWithdraw||0;
+ document.getElementById("limit").innerText=limit;
 });
 
-// =======================
-// 🔴 Monetag Ad
-// 👉 এখানে তোমার Monetag Zone ID বসাবে
-// =======================
-function showAd(){
-  show_10420496(); // 🔁 এই ID রিপ্লেস করবে
-}
-
-// =======================
-// 🔴 Withdraw
-// =======================
-function showWithdraw(){
-  document.getElementById("withdrawBox").style.display="block";
-}
-
-function withdraw(){
-  const method=document.getElementById("method").value;
-  const number=document.getElementById("number").value;
-  const amount=document.getElementById("amount").value;
-
-  if(!method || !number || !amount){
-    alert("সব তথ্য পূরণ করুন");
-    return;
-  }
-
-  const wid=Date.now();
-  db.ref("withdraw_requests/"+wid).set({
-    userId:userId,
-    name:user.first_name,
-    method:method,
-    number:number,
-    amount:amount,
-    status:"pending",
-    time:Date.now()
-  }).then(()=>{
-    alert("Withdraw request sent ✅");
-    document.getElementById("withdrawBox").style.display="none";
+/* USER INIT */
+const uRef=db.ref("users/"+uid);
+uRef.once("value").then(s=>{
+ if(!s.exists()){
+  uRef.set({
+   name:user.first_name,
+   balance:0,
+   totalEarn:0,
+   adsToday:0,
+   lastAdDate:today,
+   referrals:0
   });
+ }
+});
+
+/* USER LIVE */
+uRef.on("value",s=>{
+ const d=s.val();
+ if(!d) return;
+ if(d.lastAdDate!==today){
+  uRef.update({adsToday:0,lastAdDate:today});
+ }
+ document.getElementById("balance").innerText=d.balance;
+ document.getElementById("total").innerText=d.totalEarn;
+ document.getElementById("refs").innerText=d.referrals;
+ document.getElementById("ads").innerText=d.adsToday;
+});
+
+/* WATCH AD */
+function watchAd(){
+ uRef.transaction(u=>{
+  if(!u || u.adsToday>=limit) return u;
+  show_10420496(); // ✅ Monetag
+  u.balance+=perAd;
+  u.totalEarn+=perAd;
+  u.adsToday+=1;
+  return u;
+ });
+}
+
+/* WITHDRAW */
+function showWithdraw(){
+ document.getElementById("withdrawBox").classList.toggle("hide");
+}
+function showHome(){
+ document.getElementById("withdrawBox").classList.add("hide");
+}
+function withdraw(){
+ if(Number(amount.value)<minW){
+  alert("Minimum withdraw "+minW);return;
+ }
+ db.ref("withdraw_requests").push({
+  userId:uid,
+  amount:Number(amount.value),
+  method:method.value,
+  number:number.value,
+  status:"pending",
+  time:Date.now()
+ });
+ alert("Withdraw request sent");
+}
+
+/* REFERRAL */
+if(tg.initDataUnsafe.start_param){
+ const ref=tg.initDataUnsafe.start_param;
+ db.ref("users/"+ref+"/balance").transaction(b=>(b||0)+refBonus);
+ db.ref("users/"+ref+"/referrals").transaction(r=>(r||0)+1);
+}
+
+/* SHARE */
+function share(){
+ db.ref("settings/botUsername").once("value",s=>{
+  tg.openTelegramLink("https://t.me/"+s.val()+"?start="+uid);
+ });
 }
 </script>
 
