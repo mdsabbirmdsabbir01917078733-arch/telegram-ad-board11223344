@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Telegram User Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
+
+  <style>
+    body { font-family: Arial; background:#f4f6fb; padding:20px; }
+    .box { background:#fff; padding:20px; border-radius:10px; }
+    button { width:100%; padding:10px; margin-top:10px; }
+  </style>
+</head>
+<body>
+
+<div class="box">
+  <h3 id="name">Loading...</h3>
+  <p>Telegram ID: <span id="uid">-</span></p>
+  <p>Balance: ৳ <span id="balance">0</span></p>
+</div>
+
+<script type="module">
+/* ===============================
+   Telegram Auto Login
+================================ */
+const tg = window.Telegram.WebApp;
+tg.ready();
+
+const tgUser = tg.initDataUnsafe.user;
+if(!tgUser){
+  document.body.innerHTML = "Open from Telegram Bot";
+  throw "";
+}
+
+/* ===============================
+   🔥 FIREBASE CONFIG
+   👉 এখানে আপনার Firebase API বসান
+================================ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBNcV0FMuEvxgg6FFClJ5r7Xld4g3Z7x6U",
+  authDomain: "double-earning-bot.firebaseapp.com",
+  databaseURL: "https://double-earning-bot-default-rtdb.firebaseio.com",
+  projectId: "double-earning-bot",
+  storageBucket: "double-earning-bot.firebasestorage.app",
+  messagingSenderId: "155076870534",
+  appId: "1:155076870534:web:0023206fbb40f56aafac07",
+  measurementId: "G-HKT35XCSYH"
+};
+
+/* ===============================
+   Firebase Init
+================================ */
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* ===============================
+   User Create / Load
+================================ */
+const uid = tgUser.id.toString();
+document.getElementById("uid").innerText = uid;
+
+const userRef = ref(db, "users/" + uid);
+const snap = await get(userRef);
+
+if(!snap.exists()){
+  await set(userRef, {
+    telegram_id: uid,
+    name: tgUser.first_name,
+    username: tgUser.username || "",
+    balance: 0,
+    status: "active",
+    join_time: Date.now()
+  });
+}
+
+document.getElementById("name").innerText =
+  "Welcome, " + tgUser.first_name;
+
+/* ===============================
+   Live Balance Load
+================================ */
+onValue(userRef, (snapshot) => {
+  const data = snapshot.val();
+  document.getElementById("balance").innerText =
+    data.balance ?? 0;
+});
+</script>
+
+</body>
+</html>
