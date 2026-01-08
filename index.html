@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="bn">
 <head>
 <meta charset="UTF-8">
 <title>User Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<!-- Telegram -->
+<!-- Telegram WebApp -->
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
 <!-- Firebase v8 -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<!-- Monetag -->
-<script src="//libtl.com/sdk.js"
-        data-zone="10420496"
-        data-sdk="show_10420496"></script>
+<!-- Monetag SDK (ZONE ID বসানো আছে) -->
+<script src='//libtl.com/sdk.js'
+ data-zone='10420496'
+ data-sdk='show_10420496'></script>
 
 <style>
 body{margin:0;font-family:sans-serif;background:#0f172a;color:#fff}
@@ -31,8 +31,8 @@ input,select{width:100%;padding:10px;border-radius:8px;border:none}
 <body>
 
 <div class="card">
-👤 <b id="name"></b><br>
-ID: <span id="uid"></span>
+👤 <b id="name">Loading...</b><br>
+ID: <span id="uid">---</span>
 </div>
 
 <div class="card">
@@ -65,10 +65,11 @@ ID: <span id="uid"></span>
 <div onclick="showHome()">🏠</div>
 <div onclick="showWithdraw()">💸</div>
 <div onclick="share()">👥</div>
+<div>🎧</div>
 </div>
 
 <script>
-/* 🔥 FIREBASE CONFIG */
+/* ================= FIREBASE CONFIG ================= */
 firebase.initializeApp({
   apiKey: "",
   authDomain: "double-earning-bot.firebaseapp.com",
@@ -78,107 +79,131 @@ firebase.initializeApp({
   messagingSenderId: "155076870534",
   appId: "1:155076870534:web:0023206fbb40f56aafac07"
 });
-const db=firebase.database();
+const db = firebase.database();
 
-/* TELEGRAM USER */
-const tg=Telegram.WebApp;
+/* ================= TELEGRAM USER (SAFE) ================= */
+const tg = Telegram.WebApp;
 tg.expand();
-const user=tg.initDataUnsafe.user;
-const uid=user.id;
 
-document.getElementById("name").innerText=user.first_name;
-document.getElementById("uid").innerText=uid;
+let uid, userName;
 
-/* DATE */
-const today=new Date().toISOString().split("T")[0];
-
-/* LOAD SETTINGS */
-let perAd=0, limit=0, refBonus=0, minW=0;
-db.ref("settings").on("value",s=>{
- const d=s.val();
- if(!d) return;
- document.getElementById("notice").innerText=d.notice||"";
- perAd=d.valuePerAd||0;
- limit=d.dailyAdLimit||0;
- refBonus=d.referralBonus||0;
- minW=d.minWithdraw||0;
- document.getElementById("limit").innerText=limit;
-});
-
-/* USER INIT */
-const uRef=db.ref("users/"+uid);
-uRef.once("value").then(s=>{
- if(!s.exists()){
-  uRef.set({
-   name:user.first_name,
-   balance:0,
-   totalEarn:0,
-   adsToday:0,
-   lastAdDate:today,
-   referrals:0
-  });
- }
-});
-
-/* USER LIVE */
-uRef.on("value",s=>{
- const d=s.val();
- if(!d) return;
- if(d.lastAdDate!==today){
-  uRef.update({adsToday:0,lastAdDate:today});
- }
- document.getElementById("balance").innerText=d.balance;
- document.getElementById("total").innerText=d.totalEarn;
- document.getElementById("refs").innerText=d.referrals;
- document.getElementById("ads").innerText=d.adsToday;
-});
-
-/* WATCH AD */
-function watchAd(){
- uRef.transaction(u=>{
-  if(!u || u.adsToday>=limit) return u;
-  show_10420496(); // ✅ Monetag
-  u.balance+=perAd;
-  u.totalEarn+=perAd;
-  u.adsToday+=1;
-  return u;
- });
+if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+  uid = tg.initDataUnsafe.user.id.toString();
+  userName = tg.initDataUnsafe.user.first_name;
+} else {
+  uid = "test_" + Math.floor(Math.random()*1000000);
+  userName = "Test User";
 }
 
-/* WITHDRAW */
+uidEl = document.getElementById("uid");
+nameEl = document.getElementById("name");
+uidEl.innerText = uid;
+nameEl.innerText = userName;
+
+/* ================= DATE ================= */
+const today = new Date().toISOString().split("T")[0];
+
+/* ================= LOAD SETTINGS ================= */
+let perAd=0, limit=0, refBonus=0, minW=0;
+
+db.ref("settings").on("value", s=>{
+  const d = s.val() || {};
+  document.getElementById("notice").innerText = d.notice || "";
+  perAd   = d.valuePerAd || 0;
+  limit   = d.dailyAdLimit || 0;
+  refBonus= d.referralBonus || 0;
+  minW    = d.minWithdraw || 0;
+  document.getElementById("limit").innerText = limit;
+});
+
+/* ================= USER INIT ================= */
+const uRef = db.ref("users/"+uid);
+
+uRef.once("value").then(s=>{
+  if(!s.exists()){
+    uRef.set({
+      name:userName,
+      balance:0,
+      totalEarn:0,
+      adsToday:0,
+      lastAdDate:today,
+      referrals:0
+    });
+  }
+});
+
+/* ================= USER LIVE ================= */
+uRef.on("value", s=>{
+  const d = s.val();
+  if(!d) return;
+
+  if(d.lastAdDate !== today){
+    uRef.update({adsToday:0,lastAdDate:today});
+  }
+
+  document.getElementById("balance").innerText = d.balance;
+  document.getElementById("total").innerText   = d.totalEarn;
+  document.getElementById("refs").innerText    = d.referrals;
+  document.getElementById("ads").innerText     = d.adsToday;
+});
+
+/* ================= WATCH AD ================= */
+function watchAd(){
+  if (typeof window["show_10420496"] !== "function") {
+    alert("Ad not ready");
+    return;
+  }
+
+  uRef.transaction(u=>{
+    if(!u || u.adsToday >= limit) return;
+    window["show_10420496"](); // REAL MONETAG AD
+    u.balance += perAd;
+    u.totalEarn += perAd;
+    u.adsToday += 1;
+    return u;
+  });
+}
+
+/* ================= WITHDRAW ================= */
 function showWithdraw(){
- document.getElementById("withdrawBox").classList.toggle("hide");
+  document.getElementById("withdrawBox").classList.toggle("hide");
 }
 function showHome(){
- document.getElementById("withdrawBox").classList.add("hide");
+  document.getElementById("withdrawBox").classList.add("hide");
 }
 function withdraw(){
- if(Number(amount.value)<minW){
-  alert("Minimum withdraw "+minW);return;
- }
- db.ref("withdraw_requests").push({
-  userId:uid,
-  amount:Number(amount.value),
-  method:method.value,
-  number:number.value,
-  status:"pending",
-  time:Date.now()
- });
- alert("Withdraw request sent");
+  if(Number(amount.value) < minW){
+    alert("Minimum withdraw "+minW);
+    return;
+  }
+  db.ref("withdraw_requests").push({
+    userId:uid,
+    amount:Number(amount.value),
+    method:method.value,
+    number:number.value,
+    status:"pending",
+    time:Date.now()
+  });
+  alert("Withdraw request sent");
 }
 
-/* REFERRAL */
-if(tg.initDataUnsafe.start_param){
- const ref=tg.initDataUnsafe.start_param;
- db.ref("users/"+ref+"/balance").transaction(b=>(b||0)+refBonus);
- db.ref("users/"+ref+"/referrals").transaction(r=>(r||0)+1);
+/* ================= REFERRAL ================= */
+if(tg.initDataUnsafe && tg.initDataUnsafe.start_param){
+  const ref = tg.initDataUnsafe.start_param;
+  if(ref !== uid){
+    db.ref("users/"+ref+"/balance").transaction(b=>(b||0)+refBonus);
+    db.ref("users/"+ref+"/referrals").transaction(r=>(r||0)+1);
+  }
 }
 
-/* SHARE */
+/* ================= SHARE ================= */
 function share(){
- db.ref("settings/botUsername").once("value",s=>{
-  tg.openTelegramLink("https://t.me/"+s.val()+"?start="+uid);
- });
+  db.ref("settings/botUsername").once("value", s=>{
+    const bot = s.val();
+    tg.openTelegramLink(
+      "https://t.me/" + bot + "?start=" + uid
+    );
+  });
 }
 </script>
 
